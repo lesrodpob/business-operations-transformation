@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="banner-elpalmar.png" width="90%" height="300">
+  <img src="images/banner-elpalmar.png" width="90%" height="300">
 </p>
 
 ## 📌 Project Overview
