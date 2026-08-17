@@ -35,15 +35,6 @@ The project involved analyzing existing business processes, identifying operatio
 
 ### Key Challenges Identified
 
-- Manual inventory management processes.
-- Inconsistent product naming and classification.
-- Inventory losses and stock discrepancies affecting business profitability.
-- Manual reporting and data consolidation.
-- Gaps in the use of the existing ERP system.
-- Limited access to structured business data for analysis.
-
-### Key Challenges Identified
-
 - Inconsistent product naming and classification.
 - Limited access to reliable inventory information, often requiring manual stock verification.
 - Manual reporting and data consolidation.
