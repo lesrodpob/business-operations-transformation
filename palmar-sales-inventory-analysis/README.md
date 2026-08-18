@@ -27,7 +27,7 @@ The project combines SQL, Power BI, Power Query, and DAX to transform raw ERP da
 
 ## Dashboard
 
-
+![Palmar Sales & Inventory Dashboard](screenshots/dashboard-overview.png)
 
 ## Key Analysis Areas
 
