@@ -131,3 +131,4 @@ The assessment confirmed that several operational issues identified during the b
 The findings provide a measurable baseline for subsequent data cleansing, inventory reconciliation, reporting improvements, and ongoing data quality monitoring.
 
 ![Dashboard Palmar](/images/data-quality-dashboard.png)
+![Dashboard Palmar](/images/data-quality-dashboard-2.png)
