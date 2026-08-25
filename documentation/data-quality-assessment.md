@@ -129,3 +129,5 @@ Recommended actions include:
 The assessment confirmed that several operational issues identified during the business and process analysis were also reflected in the underlying ERP data.
 
 The findings provide a measurable baseline for subsequent data cleansing, inventory reconciliation, reporting improvements, and ongoing data quality monitoring.
+
+![Dashboard Palmar](/images/data-quality-dashboard.png)
