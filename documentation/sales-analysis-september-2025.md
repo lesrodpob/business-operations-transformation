@@ -24,4 +24,4 @@ The analysis focuses on sales performance during September 2025, with emphasis o
 
 ## Dashboard
 
-![Sales Analysis — September 2025](../images/sales-analysis-september-2025.png)
+![Sales Analysis — September 2025](../images/dashboard-sales-analysis-september.png)
