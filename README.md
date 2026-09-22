@@ -2,22 +2,30 @@
   <img src="images/banner-elpalmar.png" width="90%" height="300">
 </p>
 
+# Business Operations Transformation — Distribuidora El Palmar
+
 ## 📌 Project Overview
 
-Business operations transformation initiative for Distribuidora El Palmar, focused on strengthening inventory management, operational processes, ERP utilization, and business reporting.
+Business operations and data transformation project for Distribuidora El Palmar, focused on improving inventory management, operational processes, ERP data utilization, business reporting, and data-driven decision support.
 
-The project involved analyzing existing business processes, identifying operational gaps, standardizing information, and implementing practical solutions to improve visibility, support sales growth, and enable more effective business management.
+The project started with an operational analysis of inventory and warehouse processes and evolved into a broader Business Intelligence initiative integrating ERP data, SQL, Excel, and Power BI.
+
+The objective is to transform operational data into actionable information that can support sales growth, inventory optimization, profitability analysis, and purchasing decisions.
 
 ---
 
 ## 🎯 Business Objectives
 
-- Improve inventory accuracy and organization.
+- Improve inventory accuracy and visibility.
 - Standardize product and inventory information.
-- Identify operational gaps and process inefficiencies.
-- Improve access to business and sales information.
-- Support sales growth through better operational visibility and reporting.
-- Improve business performance through data analysis and process improvement.
+- Improve warehouse organization and stock control.
+- Increase the use of ERP-generated information.
+- Analyze sales and product profitability.
+- Identify stockouts, slow-moving products, and high-rotation products.
+- Support purchasing decisions using historical sales and inventory data.
+- Identify opportunities to increase sales and improve margins.
+- Reduce manual reporting and data consolidation.
+- Build an interactive Business Intelligence solution for management and decision support.
 
 ---
 
@@ -27,54 +35,31 @@ The project involved analyzing existing business processes, identifying operatio
 
 - Inventory management
 - Warehouse organization
-- Sales reporting
+- Sales performance
 - Product classification
-- Operational processes
-- Data accessibility
+- Product profitability
+- Purchasing processes
+- Customer activity
 - ERP utilization
+- Operational reporting
+- Data accessibility
 
 ### Key Challenges Identified
 
 - Inconsistent product naming and classification.
-- Limited access to reliable inventory information, often requiring manual stock verification.
+- Limited visibility into real-time inventory information.
+- Manual stock verification and reconciliation.
+- Fragmented operational information.
+- Underutilization of ERP data.
+- Difficulty identifying slow-moving and critical-stock products.
+- Limited analytical support for purchasing decisions.
 - Manual reporting and data consolidation.
-- Gaps in the use of the existing ERP system.
-- Inventory losses and stock discrepancies affecting business profitability.
 
 ---
 
-## 🛠️ Solutions & Improvements
+## 🏭 Inventory & Operations Transformation
 
-- Inventory standardization and product classification.
-- Warehouse organization and product zoning.
-- Creation of structured inventory databases.
-- Improvement of inventory control processes.
-- Analysis of sales and operational information.
-- Evaluation of ERP capabilities and data accessibility.
-- Shifted reporting from manual spreadsheet consolidation toward ERP-generated reports and remote access to operational information.
-
----
-
-## 📊 Reporting & Data Accessibility
-
-A key improvement was increasing access to operational and sales information through the existing ERP infrastructure.
-
-The implementation of MrCloud enabled remote access to the ERP database, making inventory and business information more accessible and reducing reliance on manual data consolidation.
-
-This also created opportunities to use ERP-generated information more effectively for reporting, inventory monitoring, and future business analysis.
-
-**Tools used:**
-
-- SQL
-- Excel
-- Power BI
-- ERP data
-
----
-
-## 🏭 Inventory & Operations
-
-A significant part of the project focused on improving warehouse organization and inventory control.
+A significant part of the project focused on improving inventory organization and operational control.
 
 Key activities included:
 
@@ -82,53 +67,49 @@ Key activities included:
 - Warehouse zoning and organization.
 - Inventory counting and reconciliation.
 - Identification of critical stock.
-- Analysis and improvement of inventory processes.
+- Analysis of inventory discrepancies.
+- Review of ERP inventory capabilities.
+- Evaluation of stock rotation and product availability.
 
-These improvements created a more structured foundation for inventory management and future analytics.
-
----
-
-## 📈 Business Impact
-
-The initiative strengthened the company's operational foundation by:
-
-- Improving inventory visibility and control.
-- Increasing consistency across product and inventory information.
-- Improving access to operational and sales information.
-- Supporting more efficient warehouse and inventory management.
-- Reorganizing the sales floor to improve product visibility and customer experience.
-- Increasing the use of existing ERP capabilities.
-- Supporting sales growth through improved operational visibility and reporting.
+These activities established a more structured foundation for the subsequent data analytics and Business Intelligence work.
 
 ---
 
-## 🧰 Tools & Technologies
+## 🗄️ Data & ERP Integration
 
-| Area | Tools |
-|---|---|
-| Business Analysis | Business Requirements, Process Analysis, Root Cause Analysis |
-| Data Analysis | SQL, Excel, Power BI |
-| Inventory & Operations | ERP, Inventory Management |
-| Documentation | Notion |
-| Project Management | Jira, Scrum |
+The project evolved from manually managed inventory information toward structured analysis using ERP data.
 
-## 🚀 Future Opportunities
+The existing ERP system, MrCloud, provides access to operational and transactional information through a MySQL database.
 
-- Automate customer order taking through a digital product catalog.
-- Expand business reporting and analytics capabilities.
-- Further reduce manual operational processes.
-- Improve the use of sales and inventory information to support purchasing decisions.
+The database contains information related to:
 
----
+- Products
+- Product categories and families
+- Inventory by warehouse
+- Sales documents
+- Sales details
+- Purchases
+- Suppliers
+- Customers
+- Prices
+- Units of measure
+- Inventory movements
+- Returns
+- Cash operations
 
-## 📚 Project Documentation
+SQL is being used to transform the ERP data into analytical datasets and reusable views before connecting the information to Power BI.
 
-The project documentation includes business analysis, process analysis, inventory management, reporting, and improvement initiatives.
+### Data Architecture
 
-Supporting documentation and selected project materials are organized within this repository.
-
----
-
-## 🔗 Portfolio
-
-[Leslie's Projects](https://www.notion.so/Leslie-Rodriguez-Portfolio-342b844a57828021a93dfbfd9ea5d9a0)
+```text
+MrCloud ERP
+     ↓
+MySQL Database
+     ↓
+SQL Queries / Views
+     ↓
+Power BI
+     ↓
+Business Intelligence Dashboard
+     ↓
+Decision Support
