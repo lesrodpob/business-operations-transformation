@@ -4,127 +4,111 @@
 -- Inventory Analysis
 -- ============================================================
 -- Purpose:
--- Prepare the current inventory data from the ERP for Power BI.
---
--- Business context:
--- - Matriz is the main warehouse/reference point for inventory.
--- - Other warehouses are kept to identify where products are located.
--- - Inventory values are preserved as recorded by the ERP.
--- - Negative existence values are NOT removed or corrected.
---   They may be related to the current management of units,
---   displays and boxes in the ERP.
---
+-- Analyze current inventory by product and warehouse,
+-- identify the main warehouse (MATRIZ), and preserve
+-- physical warehouse locations for inventory analysis.
 -- Database: Poseasy / MrCloud
 -- Engine: MySQL
--- ============================================================
 
 
--- ============================================================
 -- 1. INVENTORY TABLE STRUCTURE
--- ============================================================
 
 DESCRIBE siproductobodega;
+DESCRIBE sibodega;
 
 
--- ============================================================
--- 2. INVENTORY OVERVIEW
--- ============================================================
--- Initial validation performed during analysis:
--- Records: 5,413
--- Products: 3,664
--- Warehouses: 19
---
--- Negative values found:
--- Stock field (SiProductoBodegaStock): 0 negative records
--- Existence field (SiProductoBodegaExistencia): 654 negative records
---
--- Business interpretation:
--- SiProductoBodegaExistencia is the field identified as the
--- current stock/existence value used by the business.
--- Negative values are preserved because they may be related
--- to displays/boxes and should not be treated as data errors
--- without further validation.
-
+-- 2. INVENTORY OVERVIEW VALIDATION
 
 SELECT
-    COUNT(*) AS TotalRecords,
-    COUNT(DISTINCT idSiProducto) AS Products,
-    COUNT(DISTINCT idSiBodega) AS Warehouses,
-
-    SUM(
-        CASE
-            WHEN SiProductoBodegaStock < 0
-            THEN 1
-            ELSE 0
-        END
-    ) AS NegativeStockRecords,
-
-    SUM(
-        CASE
-            WHEN SiProductoBodegaExistencia < 0
-            THEN 1
-            ELSE 0
-        END
-    ) AS NegativeExistenceRecords
-
+    COUNT(*) AS Registros,
+    COUNT(DISTINCT idSiProducto) AS Productos,
+    COUNT(DISTINCT idSiBodega) AS Bodegas
 FROM siproductobodega;
 
 
--- ============================================================
--- 3. INVENTORY VIEW
--- ============================================================
--- StockActual represents the current existence/stock value
--- identified for the business.
---
--- StockSistema is retained for comparison and future analysis.
---
--- BodegaID is retained because warehouse-level inventory is
--- useful for identifying where products are located.
---
--- Negative StockActual values are preserved.
+-- 3. INVENTORY STOCK VALIDATION
 
+SELECT
+    COUNT(*) AS Registros,
+    SUM(CASE WHEN SiProductoBodegaStock < 0 THEN 1 ELSE 0 END) AS StockSistemaNegativo,
+    SUM(CASE WHEN SiProductoBodegaExistencia < 0 THEN 1 ELSE 0 END) AS ExistenciaNegativa
+FROM siproductobodega;
+
+
+-- 4. WAREHOUSE STRUCTURE
+
+SELECT
+    idSiBodega,
+    SiBodegaDenominacion
+FROM sibodega
+ORDER BY idSiBodega;
+
+
+-- 5. CREATE INVENTORY VIEW
 
 CREATE OR REPLACE VIEW vw_inventory AS
-
 SELECT
-    idSiProducto AS ProductoID,
-    idSiBodega AS BodegaID,
+    p.idSiProducto AS ProductoID,
+    p.SiProductoDenominacion AS Producto,
+    pb.idSiBodega AS BodegaID,
+    b.SiBodegaDenominacion AS Bodega,
+    pb.SiProductoBodegaExistencia AS StockActual,
+    pb.SiProductoBodegaStock AS StockSistema,
+    pb.SiProductoBodegaActualizado AS Actualizado,
+    pb.SiProductoBodegaCatalogo AS Catalogo,
 
-    SiProductoBodegaExistencia AS StockActual,
-    SiProductoBodegaStock AS StockSistema,
+    CASE
+        WHEN pb.idSiBodega = 1 THEN 1
+        ELSE 0
+    END AS EsMatriz
 
-    SiProductoBodegaActualizado AS Actualizado,
-    SiProductoBodegaCatalogo AS Catalogo
+FROM siproductobodega pb
 
-FROM siproductobodega;
+LEFT JOIN siproducto p
+    ON pb.idSiProducto = p.idSiProducto
+
+LEFT JOIN sibodega b
+    ON pb.idSiBodega = b.idSiBodega;
 
 
--- ============================================================
--- 4. VIEW VALIDATION
--- ============================================================
+-- 6. VALIDATE INVENTORY VIEW
 
 SELECT *
 FROM vw_inventory
-LIMIT 30;
+LIMIT 20;
 
 
--- ============================================================
--- 5. FUTURE INVENTORY ANALYSIS
--- ============================================================
--- Future analysis can include:
---
--- - Total stock by product
--- - Stock in Matriz
--- - Stock by warehouse
--- - Products with negative stock
--- - Products with zero stock
--- - Stock coverage
--- - Inventory value
--- - Stock rotation
--- - Replenishment needs
---
--- Important:
--- Unit / display / box conversions are not implemented yet.
--- They should be incorporated after the ERP configuration and
--- product-unit relationships are confirmed.
--- ============================================================
+-- 7. INVENTORY BY WAREHOUSE
+
+SELECT
+    BodegaID,
+    Bodega,
+    COUNT(*) AS Registros,
+    COUNT(DISTINCT ProductoID) AS Productos
+FROM vw_inventory
+GROUP BY BodegaID, Bodega
+ORDER BY BodegaID;
+
+
+-- 8. INVENTORY IN MATRIZ
+
+SELECT
+    ProductoID,
+    Producto,
+    StockActual
+FROM vw_inventory
+WHERE EsMatriz = 1
+ORDER BY ProductoID;
+
+
+-- NOTES
+-- 1. SiProductoBodegaExistencia is treated as the current physical stock.
+-- 2. SiProductoBodegaStock is kept as a separate ERP stock field.
+-- 3. Negative StockActual values are not automatically treated as errors,
+--    because the business may use different units such as displays or boxes.
+-- 4. MATRIZ (BodegaID = 1) is the main warehouse/reference point.
+-- 5. Other active warehouses are retained to identify the physical
+--    location of products.
+-- 6. The old MERMA warehouse (BodegaID = 15) is not considered,
+--    because the ERP now has a dedicated waste/merma module.
+-- 7. Product unit/display/box conversion logic will be analyzed separately.
