@@ -6,11 +6,35 @@
 
 ## 📌 Project Overview
 
-Business operations and data transformation project for Distribuidora El Palmar, focused on improving inventory management, operational processes, ERP data utilization, business reporting, and data-driven decision support.
+Business operations and data transformation project for Distribuidora El Palmar, focused on improving inventory management, operational processes, ERP data utilization, business reporting, and analytical decision support.
 
-The project started with an operational analysis of inventory and warehouse processes and evolved into a broader Business Intelligence initiative integrating ERP data, SQL, Excel, and Power BI.
+The project started with an operational analysis of inventory and warehouse processes and evolved into a broader Business Intelligence and digital transformation initiative integrating ERP data, SQL, Excel, Power BI, and web technologies.
 
-The objective is to transform operational data into actionable information that can support sales growth, inventory optimization, profitability analysis, and purchasing decisions.
+The objective is to transform operational data into actionable information that can support sales growth, inventory optimization, profitability analysis, purchasing decisions, and operational efficiency.
+
+---
+
+## 🌐 Digital Product Catalog
+
+A web-based digital product catalog was developed as part of the project's digital transformation initiatives.
+
+The catalog provides customers with a structured way to browse available products and submit orders, while using product information generated from the ERP system.
+
+👉 **[View Live Digital Catalog](https://distribuidora-el-palmar-limache.vercel.app/)**
+
+### Key Features
+
+- Product categorization and filtering.
+- Product search.
+- Stock-based product visibility.
+- Shopping cart.
+- WhatsApp order integration.
+- Responsive web design.
+- ERP-generated JSON product data.
+
+### Technology
+
+**React · JavaScript · JSON · Vercel**
 
 ---
 
@@ -26,6 +50,7 @@ The objective is to transform operational data into actionable information that 
 - Identify opportunities to increase sales and improve margins.
 - Reduce manual reporting and data consolidation.
 - Build an interactive Business Intelligence solution for management and decision support.
+- Digitize customer-facing processes through web-based tools.
 
 ---
 
@@ -43,6 +68,7 @@ The objective is to transform operational data into actionable information that 
 - ERP utilization
 - Operational reporting
 - Data accessibility
+- Digital ordering processes
 
 ### Key Challenges Identified
 
@@ -54,6 +80,7 @@ The objective is to transform operational data into actionable information that 
 - Difficulty identifying slow-moving and critical-stock products.
 - Limited analytical support for purchasing decisions.
 - Manual reporting and data consolidation.
+- Limited digital tools for customer product discovery and ordering.
 
 ---
 
@@ -71,7 +98,7 @@ Key activities included:
 - Review of ERP inventory capabilities.
 - Evaluation of stock rotation and product availability.
 
-These activities established a more structured foundation for the subsequent data analytics and Business Intelligence work.
+These activities established a more structured foundation for the subsequent data analytics, Business Intelligence, and digital transformation work.
 
 ---
 
@@ -99,6 +126,8 @@ The database contains information related to:
 
 SQL is being used to transform the ERP data into analytical datasets and reusable views before connecting the information to Power BI.
 
+Structured ERP-generated data is also used to support the digital product catalog, creating a connection between operational data and customer-facing digital tools.
+
 ### Data Architecture
 
 ```text
@@ -108,8 +137,11 @@ MySQL Database
      ↓
 SQL Queries / Views
      ↓
-Power BI
-     ↓
-Business Intelligence Dashboard
-     ↓
-Decision Support
+ ┌───────────────────────┐
+ ↓                       ↓
+Power BI              JSON Data
+ ↓                       ↓
+Business Intelligence   Digital Product
+Dashboard               Catalog
+ ↓                       ↓
+Decision Support      Customer Ordering
