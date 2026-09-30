@@ -1,0 +1,152 @@
+-- ============================================================
+-- DISTRIBUIDORA EL PALMAR
+-- Business Operations Transformation
+-- Power BI Model Views
+-- ============================================================
+-- Purpose:
+-- Final views to be loaded into Power BI.
+-- These views use the analytical/base views created in the
+-- previous SQL files.
+-- Database: Poseasy / MrCloud
+-- Engine: MySQL
+--
+-- 1. vw_fact_sales
+-- 2. vw_fact_purchases
+-- 3. vw_fact_inventory
+-- 4. vw_dim_product
+-- 5. vw_dim_customer
+-- 6. vw_dim_salesperson
+-- 7. vw_dim_last_purchase
+
+-- ============================================================
+-- 1. SALES FACT
+-- ============================================================
+CREATE OR REPLACE VIEW vw_fact_sales AS
+SELECT
+    idVeDocumentoGeneral AS VentaID,
+    Fecha,
+    TipoDocumento,
+    Folio,
+    Cliente AS ClienteID,
+    Bodega AS BodegaID,
+    Vendedor AS VendedorID,
+    idSiProducto AS ProductoID,
+    Producto,
+    Cantidad,
+    PrecioVenta,
+    VentaTotal,
+    CostoERP,
+    Descuento1,
+    Descuento2
+FROM vw_sales_detail;
+
+
+-- ============================================================
+-- 2. PURCHASE FACT
+-- ============================================================
+CREATE OR REPLACE VIEW vw_fact_purchases AS
+SELECT
+    idCoComprobanteGeneral AS CompraID,
+    FechaCompra,
+    NumeroDocumento,
+    ProveedorID,
+    BodegaID,
+    idCoComprobanteDetalle AS CompraDetalleID,
+    ProductoID,
+    Producto,
+    CantidadComprada,
+    UnidadCompra,
+    CantidadEmpaque,
+    PrecioCompra,
+    Descuento,
+    TotalCompra,
+    CostoCompra,
+    UltimoCosto,
+    CodigoProveedor
+FROM vw_purchase_history;
+
+
+-- ============================================================
+-- 3. INVENTORY FACT
+-- ============================================================
+CREATE OR REPLACE VIEW vw_fact_inventory AS
+SELECT
+    ProductoID,
+    Producto,
+    BodegaID,
+    Bodega,
+    StockActual,
+    StockSistema,
+    Actualizado,
+    Catalogo,
+    EsMatriz
+FROM vw_inventory;
+
+
+-- ============================================================
+-- 4. PRODUCT DIMENSION
+-- ============================================================
+CREATE OR REPLACE VIEW vw_dim_product AS
+SELECT
+    ProductoID,
+    Producto,
+    CategoriaID,
+    Categoria,
+    CategoriaActiva,
+    FamiliaID,
+    Familia,
+    FamiliaActiva,
+    MedidaID,
+    Medida,
+    MedidaActiva
+FROM vw_product_classification;
+
+
+-- ============================================================
+-- 5. CUSTOMER DIMENSION
+-- ============================================================
+CREATE OR REPLACE VIEW vw_dim_customer AS
+SELECT
+    ClienteID,
+    DigitoVerificador,
+    RazonSocial,
+    NombreFantasia,
+    Giro,
+    ComunaID,
+    TipoCliente,
+    LineaCredito,
+    DiasCredito,
+    Descuento,
+    Activo,
+    ListaPrecioID
+FROM vw_customer;
+
+
+-- ============================================================
+-- 6. SALESPERSON DIMENSION
+-- ============================================================
+CREATE OR REPLACE VIEW vw_dim_salesperson AS
+SELECT
+    VendedorID,
+    NombreVendedor,
+    Comision,
+    Activo
+FROM vw_salesperson;
+
+
+-- ============================================================
+-- 7. LAST PURCHASE BY PRODUCT
+-- ============================================================
+CREATE OR REPLACE VIEW vw_dim_last_purchase AS
+SELECT
+    ProductoID,
+    Producto,
+    FechaCompra,
+    ProveedorID,
+    BodegaID,
+    CantidadComprada,
+    UnidadCompra,
+    PrecioCompra,
+    CostoCompra,
+    TotalCompra
+FROM vw_last_purchase;
