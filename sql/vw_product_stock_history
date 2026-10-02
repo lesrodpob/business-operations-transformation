@@ -1,0 +1,66 @@
+-- ============================================================
+-- DISTRIBUIDORA EL PALMAR
+-- Product Stock History
+-- ============================================================
+-- Purpose:
+-- Historical traceability of physical stock changes by product
+-- and warehouse.
+--
+-- Important:
+-- This view describes physical inventory movements recorded
+-- in poseasydte. It does not attempt to classify commercial
+-- processes such as preventas/concesiones, which are stored
+-- outside this database.
+-- ============================================================
+
+CREATE OR REPLACE VIEW vw_product_stock_history AS
+
+SELECT
+    -- Product
+    b.idSiProducto AS ProductoID,
+    p.SiProductoDenominacion AS Producto,
+
+    -- Warehouse
+    b.idSiBodega AS BodegaID,
+    bo.SiBodegaDenominacion AS Bodega,
+
+    -- Stock before and after the event
+    b.SiProductoBodegaExistenciaAntes AS StockAntes,
+    b.SiProductoBodegaTpCantidad AS CantidadRegistrada,
+    b.SiProductoBodegaExistenciaAhora AS StockAhora,
+
+    -- Physical stock variation
+    (
+        b.SiProductoBodegaExistenciaAhora
+        - b.SiProductoBodegaExistenciaAntes
+    ) AS MovimientoNeto,
+
+    -- Physical direction of the movement
+    CASE
+        WHEN (
+            b.SiProductoBodegaExistenciaAhora
+            - b.SiProductoBodegaExistenciaAntes
+        ) > 0 THEN 'Entrada'
+
+        WHEN (
+            b.SiProductoBodegaExistenciaAhora
+            - b.SiProductoBodegaExistenciaAntes
+        ) < 0 THEN 'Salida'
+
+        ELSE 'Sin cambio'
+    END AS TipoMovimientoStock,
+
+    -- ERP information
+    b.SiProductoBodegaFechaHora AS FechaHora,
+    b.SiProductoBodegaTpMovimiento AS TipoMovimientoERP,
+    b.SiProductoBodegaTpRef AS Referencia
+
+FROM siproductobodegabitacora b
+
+LEFT JOIN siproducto p
+    ON b.idSiProducto = p.idSiProducto
+
+LEFT JOIN sibodega bo
+    ON b.idSiBodega = bo.idSiBodega
+
+WHERE YEAR(b.SiProductoBodegaFechaHora) > 0;
