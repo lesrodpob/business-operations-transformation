@@ -88,18 +88,21 @@ FROM vw_inventory;
 -- ============================================================
 CREATE OR REPLACE VIEW vw_dim_product AS
 SELECT
-    ProductoID,
-    Producto,
-    CategoriaID,
-    Categoria,
-    CategoriaActiva,
-    FamiliaID,
-    Familia,
-    FamiliaActiva,
-    MedidaID,
-    Medida,
-    MedidaActiva
-FROM vw_product_classification;
+    pc.ProductoID,
+    pc.Producto,
+    pc.CategoriaID,
+    pc.Categoria,
+    pc.CategoriaActiva,
+    pc.FamiliaID,
+    pc.Familia,
+    pc.FamiliaActiva,
+    pc.MedidaID,
+    pc.Medida,
+    pc.MedidaActiva,
+    p.SiProductoUltimoCosto AS UltimoCosto
+FROM vw_product_classification pc
+LEFT JOIN siproducto p
+    ON pc.ProductoID = p.idSiProducto;
 
 
 -- ============================================================
