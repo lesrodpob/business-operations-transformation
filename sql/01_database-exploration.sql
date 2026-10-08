@@ -1,184 +1,245 @@
 -- ============================================================
 -- DISTRIBUIDORA EL PALMAR
 -- Business Operations Transformation
--- SQL Database Exploration
+-- Product Movements View
 -- ============================================================
---
 -- Purpose:
--- Initial exploration of the ERP MySQL database to understand
--- available tables, relevant entities, document types and
--- potential data quality issues.
+-- Consolidate physical inventory movements and commercial
+-- activity into a single source for the Power BI product detail.
 --
--- Database: Poseasy / MrCloud
--- Engine: MySQL
+-- Business rules:
+-- 1. Physical movements come from vw_product_stock_history.
+-- 2. Kit sales (Caja / Display) are mapped to their base product.
+-- 3. Kit quantities are converted into equivalent base units.
+-- 4. Stock balances are NULL for kit sales because the ERP
+--    deducts stock from the kit SKU, not the base product SKU.
+-- 5. Direct sales and purchases are recorded by unit.
+-- 6. Commercial movements do not represent confirmed sales
+--    or physical stock balances.
+-- 7. Sales references use the actual document folio.
+-- 8. Purchase references use the supplier document number.
 -- ============================================================
 
+CREATE OR REPLACE VIEW vw_product_movements AS
 
--- ============================================================
--- 1. DATABASE STRUCTURE
--- ============================================================
-
--- List all tables available in the database
-SHOW TABLES;
-
-
--- ============================================================
--- 2. CORE TABLE STRUCTURE
--- ============================================================
-
--- Sales / commercial documents
-DESCRIBE vedocumentogeneral;
-DESCRIBE vedocumentodetalle;
-
--- Products and product master data
-DESCRIBE siproducto;
-
--- Product inventory by warehouse
-DESCRIBE siproductobodega;
-
--- Warehouses
-DESCRIBE sibodega;
-
--- Product categories and families
-DESCRIBE sicategoria;
-DESCRIBE sifamilia;
-
--- Customers
-DESCRIBE sicliente;
-
--- Document types
-DESCRIBE sidocumento;
-
-
--- ============================================================
--- 3. DOCUMENT TYPES USED IN SALES ANALYSIS
--- ============================================================
+/* ============================================================
+   1. PHYSICAL MOVEMENTS
+   ============================================================ */
 
 SELECT
-    idSiDocumento,
-    SiDocumentoCodigoSII,
-    SiDocumentoDenominacion
-FROM sidocumento
-WHERE SiDocumentoCodigoSII IN (33, 35, 39, 52, 56, 61)
-ORDER BY SiDocumentoCodigoSII;
+    CASE
+        WHEN venta.Formato IS NOT NULL
+            THEN venta.ProductoBaseID
+        ELSE h.ProductoID
+    END AS ProductoID,
+
+    CASE
+        WHEN venta.Formato IS NOT NULL
+            THEN venta.ProductoBase
+        ELSE h.Producto
+    END AS Producto,
+
+    h.BodegaID,
+    h.Bodega,
+
+    CASE
+        WHEN venta.Formato IS NOT NULL
+            THEN NULL
+        ELSE h.StockAntes
+    END AS StockAntes,
+
+    h.CantidadRegistrada,
+
+    CASE
+        WHEN venta.Formato IS NOT NULL
+            THEN NULL
+        ELSE h.StockAhora
+    END AS StockAhora,
+
+    CASE
+        WHEN venta.Formato IS NOT NULL
+            THEN NULL
+        ELSE h.MovimientoNeto
+    END AS MovimientoNeto,
+
+    h.TipoMovimientoStock,
+
+    CASE
+        WHEN h.TipoMovimientoNegocio = 'Recepción'
+            THEN 'Compra'
+        ELSE h.TipoMovimientoNegocio
+    END AS TipoMovimientoNegocio,
+
+    h.FechaHora,
+    h.TipoMovimientoERP,
+
+    CASE
+        WHEN h.TipoMovimientoERP LIKE 'VENTA-%'
+            THEN SUBSTRING_INDEX(
+                h.TipoMovimientoERP,
+                '-',
+                -1
+            )
+
+        WHEN h.TipoMovimientoERP LIKE
+             'COMPROBANTE DE RECEPCION%'
+            THEN CAST(compra.DocumentoCompra AS CHAR)
+
+        ELSE h.Referencia
+    END AS Referencia,
+
+    'Fisico' AS Origen,
+
+    NULL AS DocumentoID,
+    NULL AS Documento,
+    NULL AS Nota,
+
+    CASE
+        WHEN h.TipoMovimientoNegocio IN
+             ('Venta', 'Recepción', 'Compra')
+            THEN COALESCE(venta.Formato, 'Unitario')
+        ELSE NULL
+    END AS Formato,
+
+    CASE
+        WHEN h.TipoMovimientoNegocio = 'Venta'
+             AND venta.Formato IS NOT NULL
+            THEN h.CantidadRegistrada
+                 * venta.UnidadesPorFormato
+        ELSE h.CantidadRegistrada
+    END AS UnidadesEquivalentes
+
+FROM vw_product_stock_history h
+
+/* Map kit sales to their base products */
+
+LEFT JOIN (
+    SELECT DISTINCT
+        g.VeDocumentoGeneralFolio AS Folio,
+        d.idSiProducto AS ProductoVendidoID,
+        kit.idSiProductoInsumo AS ProductoBaseID,
+        base.SiProductoDenominacion AS ProductoBase,
+
+        CASE
+            WHEN UPPER(
+                TRIM(kit_producto.SiProductoDenominacion)
+            ) LIKE 'CAJA%'
+                THEN 'Caja'
+
+            WHEN UPPER(
+                TRIM(kit_producto.SiProductoDenominacion)
+            ) LIKE 'DISPLAY%'
+                THEN 'Display'
+
+            ELSE NULL
+        END AS Formato,
+
+        kit.SiProductoKitCantidad AS UnidadesPorFormato
+
+    FROM vedocumentogeneral g
+
+    INNER JOIN vedocumentodetalle d
+        ON g.idVeDocumentoGeneral =
+           d.idVeDocumentoGeneral
+
+    INNER JOIN siproductokit kit
+        ON d.idSiProducto =
+           kit.idSiProducto
+
+    INNER JOIN siproducto kit_producto
+        ON kit.idSiProducto =
+           kit_producto.idSiProducto
+
+    INNER JOIN siproducto base
+        ON kit.idSiProductoInsumo =
+           base.idSiProducto
+
+    WHERE
+        g.SiDocumentoCodigoSII IN (33, 35, 39)
+
+        AND g.VeDocumentoGeneralFecEmision <= CURDATE()
+
+        AND kit.SiProductoKitCantidad > 0
+
+        AND (
+            UPPER(
+                TRIM(kit_producto.SiProductoDenominacion)
+            ) LIKE 'CAJA%'
+
+            OR
+
+            UPPER(
+                TRIM(kit_producto.SiProductoDenominacion)
+            ) LIKE 'DISPLAY%'
+        )
+) venta
+    ON h.TipoMovimientoERP LIKE 'VENTA-%'
+
+    AND CAST(
+        SUBSTRING_INDEX(
+            h.TipoMovimientoERP,
+            '-',
+            -1
+        ) AS UNSIGNED
+    ) = venta.Folio
+
+    AND h.ProductoID = venta.ProductoVendidoID
+
+/* Resolve the actual supplier purchase document number */
+
+LEFT JOIN (
+    SELECT
+        idCoComprobanteGeneral,
+        CoComprobanteGeneralDocNumero AS DocumentoCompra
+    FROM cocomprobantegeneral
+) compra
+    ON h.TipoMovimientoERP LIKE
+       'COMPROBANTE DE RECEPCION%'
+
+    AND compra.idCoComprobanteGeneral =
+        CAST(h.Referencia AS UNSIGNED)
 
 
--- ============================================================
--- 4. DOCUMENT VOLUME BY TYPE
--- ============================================================
+UNION ALL
+
+
+/* ============================================================
+   2. COMMERCIAL MOVEMENTS
+   Quotes / Pre-sales / Concessions
+   ============================================================ */
 
 SELECT
-    SiDocumentoCodigoSII AS TipoDocumento,
-    COUNT(*) AS TotalDocumentos,
-    MIN(VeDocumentoGeneralFecEmision) AS FechaMinima,
-    MAX(VeDocumentoGeneralFecEmision) AS FechaMaxima,
-    SUM(VeDocumentoGeneralMontoTotal) AS MontoTotal
-FROM vedocumentogeneral
-WHERE SiDocumentoCodigoSII IN (33, 35, 39, 52, 56, 61)
-GROUP BY SiDocumentoCodigoSII
-ORDER BY SiDocumentoCodigoSII;
+    c.ProductoID,
+    c.Producto,
 
+    NULL AS BodegaID,
+    NULL AS Bodega,
 
--- ============================================================
--- 5. SALES DOCUMENTS
--- ============================================================
---
--- For the initial sales analysis, the following document types
--- are considered:
---
--- 33 = Factura Electrónica
--- 35 = Nota de Venta
--- 39 = Boleta Electrónica
---
--- Credit and debit notes are analyzed separately because they
--- represent adjustments to transactions rather than regular sales.
--- ============================================================
+    NULL AS StockAntes,
 
-SELECT
-    YEAR(VeDocumentoGeneralFecEmision) AS Año,
-    COUNT(*) AS Documentos,
-    SUM(VeDocumentoGeneralMontoTotal) AS Ventas
-FROM vedocumentogeneral
-WHERE SiDocumentoCodigoSII IN (33, 35, 39)
-GROUP BY YEAR(VeDocumentoGeneralFecEmision)
-ORDER BY Año;
+    c.CantidadFormato AS CantidadRegistrada,
 
+    NULL AS StockAhora,
+    NULL AS MovimientoNeto,
 
--- ============================================================
--- 6. DATA QUALITY CHECK - INVALID FUTURE DATES
--- ============================================================
---
--- Identify sales documents whose emission date is later than
--- the current date.
---
--- This check revealed an anomalous record that must be investigated.
--- ============================================================
+    'No aplica' AS TipoMovimientoStock,
 
-SELECT
-    idVeDocumentoGeneral,
-    SiDocumentoCodigoSII,
-    VeDocumentoGeneralFolio,
-    VeDocumentoGeneralFecEmision,
-    VeDocumentoGeneralMontoTotal
-FROM vedocumentogeneral
-WHERE SiDocumentoCodigoSII IN (33, 35, 39)
-  AND VeDocumentoGeneralFecEmision > CURDATE();
+    c.TipoMovimiento AS TipoMovimientoNegocio,
 
+    c.FechaHora,
 
--- ============================================================
--- 7. COUNT INVALID FUTURE-DATED RECORDS
--- ============================================================
+    NULL AS TipoMovimientoERP,
 
-SELECT
-    COUNT(*) AS RegistrosFechaInvalida
-FROM vedocumentogeneral
-WHERE SiDocumentoCodigoSII IN (33, 35, 39)
-  AND VeDocumentoGeneralFecEmision > CURDATE();
+    c.Documento AS Referencia,
 
+    'Comercial' AS Origen,
 
--- ============================================================
--- 8. SALES BY MONTH
--- ============================================================
+    c.DocumentoID,
+    c.Documento,
+    c.Nota,
 
-SELECT
-    YEAR(VeDocumentoGeneralFecEmision) AS Año,
-    MONTH(VeDocumentoGeneralFecEmision) AS Mes,
-    COUNT(*) AS Documentos,
-    SUM(VeDocumentoGeneralMontoTotal) AS Ventas
-FROM vedocumentogeneral
-WHERE SiDocumentoCodigoSII IN (33, 35, 39)
-GROUP BY
-    YEAR(VeDocumentoGeneralFecEmision),
-    MONTH(VeDocumentoGeneralFecEmision)
-ORDER BY
-    Año,
-    Mes;
+    c.Formato,
 
+    c.UnidadesEquivalentes
 
--- ============================================================
--- NOTES
--- ============================================================
---
--- Initial findings:
---
--- 1. The ERP database contains multiple operational domains,
---    including sales, inventory, products, customers, warehouses,
---    payments and stock movements.
---
--- 2. Sales transactions are primarily represented through
---    vedocumentogeneral and vedocumentodetalle.
---
--- 3. Product master data is stored in siproducto and inventory
---    quantities by warehouse are stored in siproductobodega.
---
--- 4. Document types must be explicitly classified before
---    calculating sales KPIs.
---
--- 5. A data quality issue was identified in the emission date:
---    at least one sales document contains a future date
---    (3620-09-23).
---
--- 6. Data quality validation is therefore required before using
---    the ERP data as a reliable source for business reporting.
---
--- ============================================================
+FROM vw_commercial_movements c;
