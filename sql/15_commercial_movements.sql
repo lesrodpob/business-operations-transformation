@@ -8,29 +8,18 @@
 -- and concessions with the existing physical stock history.
 --
 -- Business rules:
--- - Physical stock movements come from the ERP stock movement
---   history.
+-- - Physical stock movements come from the ERP stock history.
 -- - Quotations, pre-sales and concessions are commercial events.
 -- - Commercial events do NOT modify physical stock.
--- - Concessions are identified from the note field in mrpreventas.
--- - Customer information is intentionally excluded because
---   the customer field is not reliably populated for these
---   transactions.
---
--- Source tables:
---   mrcotizaciones
---   mrpreventas
---   siproductobodegabitacora
---
--- Existing physical movement view:
---   vw_product_stock_history
---
--- Output views:
---   vw_commercial_movements
---   vw_product_movements
---
--- Database: Poseasy / MrCloud
--- Engine: MySQL
+-- - Concessions are identified from the note field in
+--   mrpreventas.
+-- - Customer information is excluded because it is not reliably
+--   populated for these transactions.
+-- - CAJA and DISPLAY products are analyzed through
+--   siproductokit and converted to their base product.
+-- - StockAlMomento from the commercial JSON is intentionally
+--   excluded because it represents commercial stock context
+--   and must not affect physical inventory analysis.
 -- ============================================================
 
 
@@ -47,18 +36,30 @@
 --   Preventa
 --   Concesion
 --
+-- CAJA / DISPLAY:
+--   The commercial document may contain the kit product.
+--   The analysis is performed at the base product level.
+--
+-- Example:
+--
+--   DISPLAY COCA 3 LT X 6
+--          ↓
+--   Producto base: COCA COLA PET 3 LT.
+--   Formato: Display
+--   CantidadFormato: 1
+--   UnidadesEquivalentes: 6
+--
 -- Important:
 -- Commercial movements are NOT physical stock movements.
--- Therefore MovimientoNeto is not calculated for them.
--- StockAlMomento represents the stock recorded by the
--- commercial application when the document was created.
 -- ============================================================
+
 
 CREATE OR REPLACE VIEW vw_commercial_movements AS
 
--- ------------------------------------------------------------
--- QUOTATIONS
--- ------------------------------------------------------------
+
+-- ============================================================
+-- COTIZACIONES
+-- ============================================================
 
 SELECT
     p.id AS DocumentoID,
@@ -71,44 +72,78 @@ SELECT
 
     p.note AS Nota,
 
-    CAST(
-        JSON_UNQUOTE(
-            JSON_EXTRACT(item.value, '$.id')
-        ) AS UNSIGNED
-    ) AS ProductoID,
+    CASE
+        WHEN kit.idSiProducto IS NOT NULL
+            THEN kit.idSiProductoInsumo
+        ELSE j.ProductoID
+    END AS ProductoID,
 
-    JSON_UNQUOTE(
-        JSON_EXTRACT(item.value, '$.name')
-    ) AS Producto,
+    CASE
+        WHEN kit.idSiProducto IS NOT NULL
+            THEN base.SiProductoDenominacion
+        ELSE j.Producto
+    END AS Producto,
 
-    CAST(
-        JSON_UNQUOTE(
-            JSON_EXTRACT(item.value, '$.quantity')
-        ) AS DECIMAL(12,3)
-    ) AS Cantidad,
+    CASE
+        WHEN kit.idSiProducto IS NOT NULL
+            THEN
+                CASE
+                    WHEN UPPER(TRIM(kit_producto.SiProductoDenominacion)) LIKE 'CAJA%'
+                        THEN 'Caja'
 
-    CAST(
-        JSON_UNQUOTE(
-            JSON_EXTRACT(item.value, '$.stock')
-        ) AS DECIMAL(12,3)
-    ) AS StockAlMomento
+                    WHEN UPPER(TRIM(kit_producto.SiProductoDenominacion)) LIKE 'DISPLAY%'
+                        THEN 'Display'
+
+                    ELSE 'Unitario'
+                END
+
+        ELSE 'Unitario'
+    END AS Formato,
+
+    j.Cantidad AS CantidadFormato,
+
+    CASE
+        WHEN kit.idSiProducto IS NOT NULL
+            THEN j.Cantidad * kit.SiProductoKitCantidad
+        ELSE j.Cantidad
+    END AS UnidadesEquivalentes
 
 FROM mrcotizaciones p
 
 CROSS JOIN JSON_TABLE(
     p.items_json,
     '$[*]' COLUMNS (
-        value JSON PATH '$'
+        ProductoID INT PATH '$.id',
+        Producto VARCHAR(250) PATH '$.name',
+        Cantidad DECIMAL(12,3) PATH '$.quantity'
     )
-) AS item
+) j
+
+LEFT JOIN siproductokit kit
+    ON j.ProductoID = kit.idSiProducto
+    AND kit.SiProductoKitCantidad > 0
+
+LEFT JOIN siproducto kit_producto
+    ON kit.idSiProducto = kit_producto.idSiProducto
+
+LEFT JOIN siproducto base
+    ON kit.idSiProductoInsumo = base.idSiProducto
+
+WHERE
+    kit.idSiProducto IS NULL
+
+    OR (
+        UPPER(TRIM(kit_producto.SiProductoDenominacion)) LIKE 'CAJA%'
+        OR UPPER(TRIM(kit_producto.SiProductoDenominacion)) LIKE 'DISPLAY%'
+    )
 
 
 UNION ALL
 
 
--- ------------------------------------------------------------
--- PRE-SALES / CONCESSIONS
--- ------------------------------------------------------------
+-- ============================================================
+-- PREVENTAS / CONCESIONES
+-- ============================================================
 
 SELECT
     p.id AS DocumentoID,
@@ -125,36 +160,70 @@ SELECT
 
     p.note AS Nota,
 
-    CAST(
-        JSON_UNQUOTE(
-            JSON_EXTRACT(item.value, '$.id')
-        ) AS UNSIGNED
-    ) AS ProductoID,
+    CASE
+        WHEN kit.idSiProducto IS NOT NULL
+            THEN kit.idSiProductoInsumo
+        ELSE j.ProductoID
+    END AS ProductoID,
 
-    JSON_UNQUOTE(
-        JSON_EXTRACT(item.value, '$.name')
-    ) AS Producto,
+    CASE
+        WHEN kit.idSiProducto IS NOT NULL
+            THEN base.SiProductoDenominacion
+        ELSE j.Producto
+    END AS Producto,
 
-    CAST(
-        JSON_UNQUOTE(
-            JSON_EXTRACT(item.value, '$.quantity')
-        ) AS DECIMAL(12,3)
-    ) AS Cantidad,
+    CASE
+        WHEN kit.idSiProducto IS NOT NULL
+            THEN
+                CASE
+                    WHEN UPPER(TRIM(kit_producto.SiProductoDenominacion)) LIKE 'CAJA%'
+                        THEN 'Caja'
 
-    CAST(
-        JSON_UNQUOTE(
-            JSON_EXTRACT(item.value, '$.stock')
-        ) AS DECIMAL(12,3)
-    ) AS StockAlMomento
+                    WHEN UPPER(TRIM(kit_producto.SiProductoDenominacion)) LIKE 'DISPLAY%'
+                        THEN 'Display'
+
+                    ELSE 'Unitario'
+                END
+
+        ELSE 'Unitario'
+    END AS Formato,
+
+    j.Cantidad AS CantidadFormato,
+
+    CASE
+        WHEN kit.idSiProducto IS NOT NULL
+            THEN j.Cantidad * kit.SiProductoKitCantidad
+        ELSE j.Cantidad
+    END AS UnidadesEquivalentes
 
 FROM mrpreventas p
 
 CROSS JOIN JSON_TABLE(
     p.items_json,
     '$[*]' COLUMNS (
-        value JSON PATH '$'
+        ProductoID INT PATH '$.id',
+        Producto VARCHAR(250) PATH '$.name',
+        Cantidad DECIMAL(12,3) PATH '$.quantity'
     )
-) AS item;
+) j
+
+LEFT JOIN siproductokit kit
+    ON j.ProductoID = kit.idSiProducto
+    AND kit.SiProductoKitCantidad > 0
+
+LEFT JOIN siproducto kit_producto
+    ON kit.idSiProducto = kit_producto.idSiProducto
+
+LEFT JOIN siproducto base
+    ON kit.idSiProductoInsumo = base.idSiProducto
+
+WHERE
+    kit.idSiProducto IS NULL
+
+    OR (
+        UPPER(TRIM(kit_producto.SiProductoDenominacion)) LIKE 'CAJA%'
+        OR UPPER(TRIM(kit_producto.SiProductoDenominacion)) LIKE 'DISPLAY%'
+    );
 
 
 -- ============================================================
@@ -168,20 +237,19 @@ CROSS JOIN JSON_TABLE(
 --   Commercial movements
 --       vw_commercial_movements
 --
--- The Origen field distinguishes both types:
---
+-- Origen:
 --   Fisico
 --   Comercial
 --
--- This allows Power BI to display a unified product movement
--- history without treating commercial events as physical
--- stock movements.
+-- Physical movements retain stock calculations.
+-- Commercial movements do not affect physical stock.
 -- ============================================================
+
 
 CREATE OR REPLACE VIEW vw_product_movements AS
 
 -- ------------------------------------------------------------
--- PHYSICAL MOVEMENTS
+-- MOVIMIENTOS FISICOS
 -- ------------------------------------------------------------
 
 SELECT
@@ -207,7 +275,10 @@ SELECT
 
     NULL AS DocumentoID,
     NULL AS Documento,
-    NULL AS Nota
+    NULL AS Nota,
+
+    NULL AS Formato,
+    NULL AS UnidadesEquivalentes
 
 FROM vw_product_stock_history h
 
@@ -216,7 +287,7 @@ UNION ALL
 
 
 -- ------------------------------------------------------------
--- COMMERCIAL MOVEMENTS
+-- MOVIMIENTOS COMERCIALES
 -- ------------------------------------------------------------
 
 SELECT
@@ -227,23 +298,31 @@ SELECT
     NULL AS Bodega,
 
     NULL AS StockAntes,
-    c.Cantidad AS CantidadRegistrada,
-    c.StockAlMomento AS StockAhora,
+
+    c.CantidadFormato AS CantidadRegistrada,
+
+    NULL AS StockAhora,
 
     NULL AS MovimientoNeto,
 
     'No aplica' AS TipoMovimientoStock,
+
     c.TipoMovimiento AS TipoMovimientoNegocio,
 
     c.FechaHora,
+
     NULL AS TipoMovimientoERP,
+
     c.Documento AS Referencia,
 
     'Comercial' AS Origen,
 
     c.DocumentoID,
     c.Documento,
-    c.Nota
+    c.Nota,
+
+    c.Formato,
+    c.UnidadesEquivalentes
 
 FROM vw_commercial_movements c;
 
@@ -252,13 +331,15 @@ FROM vw_commercial_movements c;
 -- 3. VALIDATION
 -- ============================================================
 
+
 -- Validate commercial movement types
 
 SELECT
     TipoMovimientoNegocio,
     Origen,
     COUNT(*) AS Registros,
-    SUM(CantidadRegistrada) AS Cantidad
+    SUM(CantidadRegistrada) AS CantidadFormatos,
+    SUM(UnidadesEquivalentes) AS UnidadesEquivalentes
 FROM vw_product_movements
 WHERE Origen = 'Comercial'
 GROUP BY
@@ -266,6 +347,24 @@ GROUP BY
     Origen
 ORDER BY
     TipoMovimientoNegocio;
+
+
+-- Validate commercial formats
+
+SELECT
+    TipoMovimientoNegocio,
+    Formato,
+    COUNT(*) AS Registros,
+    SUM(CantidadRegistrada) AS CantidadFormatos,
+    SUM(UnidadesEquivalentes) AS UnidadesEquivalentes
+FROM vw_product_movements
+WHERE Origen = 'Comercial'
+GROUP BY
+    TipoMovimientoNegocio,
+    Formato
+ORDER BY
+    TipoMovimientoNegocio,
+    Formato;
 
 
 -- Validate consolidated movement history
@@ -287,15 +386,33 @@ ORDER BY
 -- BUSINESS NOTES
 -- ============================================================
 --
--- Current validation:
+-- Current commercial movement types:
+--   Concesion
+--   Cotizacion
+--   Preventa
 --
--- Concesion  = 11 records / 36 units
--- Cotizacion = 26 records / 46 units
--- Preventa   = 64 records / 308 units
+-- Commercial events do NOT modify physical stock.
 --
--- These values correspond to the current database state
--- at the time of validation and will change as new
--- transactions are created.
+-- StockAlMomento from mrcotizaciones / mrpreventas is
+-- intentionally excluded from the analytical model because
+-- it represents the stock context captured by the commercial
+-- application and should not be interpreted as physical
+-- inventory.
+--
+-- CAJA and DISPLAY products are converted to their base
+-- product using siproductokit.
+--
+-- The original commercial format is preserved through:
+--   Formato
+--   CantidadFormato
+--   UnidadesEquivalentes
+--
+-- Example:
+--   1 DISPLAY COCA 3 LT X 6
+--   -> Product: COCA COLA PET 3 LT.
+--   -> Formato: Display
+--   -> CantidadFormato: 1
+--   -> UnidadesEquivalentes: 6
 --
 -- Future improvement:
 -- Add a status to concessions indicating whether the
@@ -305,8 +422,4 @@ ORDER BY
 --   - Concessions pending
 --   - Concessions converted to sales
 --   - Concession conversion rate
---
--- Important:
--- Concessions, pre-sales and quotations currently do not
--- reduce physical stock.
 -- ============================================================
